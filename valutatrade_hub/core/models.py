@@ -96,3 +96,63 @@ class User:
 
     def __repr__(self) -> str:
         return f"User(user_id={self._user_id}, username={self._username!r})"
+
+
+class Wallet:
+    def __init__(self, currency_code: str, balance: float = 0.0) -> None:
+        self.currency_code = currency_code
+        self.balance = balance
+
+    @property
+    def currency_code(self) -> str:
+        return self._currency_code
+
+    @currency_code.setter
+    def currency_code(self, value: str) -> None:
+        if not value or not value.strip():
+            raise ValueError("Код валюты не может быть пустым")
+        normalized_code = value.strip().upper()
+        if not (2 <= len(normalized_code) <= 5):
+            raise ValueError("Код валюты должен содержать от 2 до 5 символов")
+        self._currency_code = normalized_code
+
+    @property
+    def balance(self) -> float:
+        return self._balance
+
+    @balance.setter
+    def balance(self, value: float) -> None:
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise TypeError("Баланс должен быть числом")
+        if value < 0:
+            raise ValueError("Баланс не может быть отрицательным")
+        self._balance = float(value)
+
+    @staticmethod
+    def _validate_amount(value: float) -> None:
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise TypeError("Баланс должен быть представлен в виде числа")
+        if value <= 0:
+            raise ValueError("Сумма должна быть положительным числом")
+
+    def deposit(self, amount: float) -> None:
+        """Пополнить баланс на amount"""
+        self._validate_amount(amount)
+        self.balance += amount
+
+    def withdraw(self, amount: float) -> None:
+        """Снять amount, если достаточно средств"""
+        self._validate_amount(amount)
+        if amount > self.balance:
+            raise ValueError(
+                f"Недостаточно средств: доступно {self._balance} "
+                f"{self.currency_code}, требуется {amount} {self.currency_code}"
+            )
+        self.balance -= amount
+
+    def get_balance_info(self) -> str:
+        """Строка с текущим балансом для CLI."""
+        return f"{self.currency_code}: {self.balance}"
+
+    def __repr__(self) -> str:
+        return f"Wallet({self.currency_code}, {self.balance})"
