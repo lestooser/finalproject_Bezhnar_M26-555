@@ -1,0 +1,17 @@
+[project]
+name = "finalproject-bezhnar-m26-555"
+version = "0.1.0"
+description = "ValutaTrade Hub — платформа для отслеживания и симуляции торговли валютами"
+requires-python = ">=3.11"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "W", "I", "F", "N", "UP"]
