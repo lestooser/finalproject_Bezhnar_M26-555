@@ -2,6 +2,16 @@ import hashlib
 import secrets
 from datetime import UTC, datetime
 
+EXCHANGE_RATES: dict[str, float] = {
+    "USD": 1.0,
+    "EUR": 1.0786,
+    "GBP": 1.2386,
+    "RUB": 0.01016,
+    "BTC": 59337.21,
+    "ETH": 3720.00,
+    "SOL": 145.12,
+}
+
 
 class User:
     SALT_LENGTH = 16
@@ -131,7 +141,7 @@ class Wallet:
     @staticmethod
     def _validate_amount(value: float) -> None:
         if not isinstance(value, (int, float)) or isinstance(value, bool):
-            raise TypeError("Баланс должен быть представлен в виде числа")
+            raise TypeError("Сумма должна быть числом")
         if value <= 0:
             raise ValueError("Сумма должна быть положительным числом")
 
@@ -156,3 +166,71 @@ class Wallet:
 
     def __repr__(self) -> str:
         return f"Wallet({self.currency_code}, {self.balance})"
+
+
+_USERS: dict[int, User] = {}
+
+
+def register_user(user: User) -> None:
+    _USERS[user.user_id] = user
+
+
+def find_user_by_id(user_id: int) -> User:
+    """Найти пользователя по id. ValueError, если не найден."""
+    if user_id not in _USERS:
+        raise ValueError(f"Пользователь с id={user_id} не найден")
+    return _USERS[user_id]
+
+
+class Portfolio:
+    def __init__(self, user_id: int, wallets: dict[str, Wallet] | None = None) -> None:
+        self._user_id = user_id
+        self._wallets: dict[str, Wallet] = wallets or {}
+
+    @property
+    def user_id(self) -> int:
+        return self._user_id
+
+    @property
+    def user(self) -> User:
+        """Пользователь-владелец портфеля (lazy lookup по user_id)."""
+        return find_user_by_id(self._user_id)
+
+    @property
+    def wallets(self) -> dict[str, Wallet]:
+        """Копия словаря кошельков — защита от внешней мутации."""
+        return dict(self._wallets)
+
+    def add_currency(self, currency_code: str) -> Wallet:
+        """Добавляет новый кошелёк в портфель (если его ещё нет)"""
+        code = currency_code.strip().upper()
+        if code in self._wallets:
+            return self._wallets[code]
+        wallet = Wallet(code)
+        self._wallets[code] = wallet
+        return wallet
+
+    def get_total_value(self, base_currency: str = "USD") -> float:
+        """Возвращает общую стоимость всех валют пользователя в указанной валюте"""
+        base = base_currency.strip().upper()
+        if base not in EXCHANGE_RATES:
+            raise ValueError(f"Неизвестная базовая валюта '{base}'")
+        base_rate = EXCHANGE_RATES[base]
+        total_usd = 0.0
+
+        for wallet in self._wallets.values():
+            if wallet.currency_code not in EXCHANGE_RATES:
+                continue
+            total_usd += wallet.balance * EXCHANGE_RATES[wallet.currency_code]
+
+        return total_usd / base_rate
+
+    def get_wallet(self, currency_code: str) -> Wallet:
+        """Возвращает кошелёк пользователя по его коду"""
+        code = currency_code.strip().upper()
+        if code not in self._wallets:
+            raise ValueError(f"У вас нет кошелька '{code}'")
+        return self._wallets[code]
+
+    def __repr__(self) -> str:
+        return f"Portfolio(user_id={self._user_id}, wallets={list(self._wallets)})"
