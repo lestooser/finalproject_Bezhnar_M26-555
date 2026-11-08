@@ -107,6 +107,41 @@ class User:
     def __repr__(self) -> str:
         return f"User(user_id={self._user_id}, username={self._username!r})"
 
+    def to_dict(self) -> dict:
+        """Сериализовать для JSON. Время - в ISO"""
+        return {
+            "user_id": self._user_id,
+            "username": self._username,
+            "hashed_password": self._hashed_password,
+            "salt": self._salt,
+            "registration_date": self._registration_date.isoformat(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "User":
+        """Восстановить из JSON-словаря"""
+        return cls(
+            user_id=data["user_id"],
+            username=data["username"],
+            hashed_password=data["hashed_password"],
+            salt=data["salt"],
+            registration_date=datetime.fromisoformat(data["registration_date"]),
+        )
+
+
+_USERS: dict[int, User] = {}
+
+
+def register_user(user: User) -> None:
+    _USERS[user.user_id] = user
+
+
+def find_user_by_id(user_id: int) -> User:
+    """Найти пользователя по id. ValueError, если не найден."""
+    if user_id not in _USERS:
+        raise ValueError(f"Пользователь с id={user_id} не найден")
+    return _USERS[user_id]
+
 
 class Wallet:
     def __init__(self, currency_code: str, balance: float = 0.0) -> None:
@@ -167,19 +202,19 @@ class Wallet:
     def __repr__(self) -> str:
         return f"Wallet({self.currency_code}, {self.balance})"
 
+    def to_dict(self) -> dict:
+        """Сериализация в JSON"""
+        return {
+            "currency_code": self.currency_code,
+            "balance": self._balance,
+        }
 
-_USERS: dict[int, User] = {}
-
-
-def register_user(user: User) -> None:
-    _USERS[user.user_id] = user
-
-
-def find_user_by_id(user_id: int) -> User:
-    """Найти пользователя по id. ValueError, если не найден."""
-    if user_id not in _USERS:
-        raise ValueError(f"Пользователь с id={user_id} не найден")
-    return _USERS[user_id]
+    @classmethod
+    def from_dict(cls, data: dict) -> "Wallet":
+        return cls(
+            currency_code=data["currency_code"],
+            balance=data["balance"],
+        )
 
 
 class Portfolio:
@@ -234,3 +269,12 @@ class Portfolio:
 
     def __repr__(self) -> str:
         return f"Portfolio(user_id={self._user_id}, wallets={list(self._wallets)})"
+
+    def to_dict(self) -> dict:
+        """Сериализует объект в JSON"""
+        return {
+            "user_id": self._user_id,
+            "wallets": {
+                code: wallet.to_dict() for code, wallet in self._wallets.items()
+            },
+        }
