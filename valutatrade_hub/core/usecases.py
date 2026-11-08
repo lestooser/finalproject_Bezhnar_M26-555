@@ -4,7 +4,14 @@
 """
 
 from valutatrade_hub.core import storage
-from valutatrade_hub.core.models import _USERS, User, register_user
+from valutatrade_hub.core.models import (
+    _USERS,
+    EXCHANGE_RATES,
+    Portfolio,
+    User,
+    Wallet,
+    register_user,
+)
 
 
 def load_all_users() -> list[User]:
@@ -59,3 +66,60 @@ def register(username: str, password: str) -> str:
         f"(id={user.user_id}). "
         f"Войдите: login --username {user.username} --password ****"
     )
+
+
+def login(username: str, password: str) -> User:
+    """Войти в систему. Возвращает User при успехе.
+
+    Raises:
+        ValueError: если пользователь не найден или пароль неверный.
+    """
+    load_all_users()
+    user = get_user_by_username(username)
+    if user is None:
+        raise ValueError(f"Пользователь '{username}' не найден")
+    if not user.verify_password(password):
+        raise ValueError("Неверный пароль")
+    return user
+
+
+def load_portfolio(user_id: int) -> Portfolio:
+    """Загрузить портфель пользователя из storage.
+
+    Если записи нет — вернуть пустой Portfolio.
+    """
+    portfolios = storage.load_portfolios_data()
+    for p in portfolios:
+        if p["user_id"] == user_id:
+            wallets = {
+                code: Wallet.from_dict(w_data) for code, w_data in p["wallets"].items()
+            }
+            return Portfolio(user_id=user_id, wallets=wallets)
+    return Portfolio(user_id=user_id)
+
+
+def show_portfolio(user_id: int, base_currency: str = "USD") -> dict:
+    """Подготовить данные портфеля для отображения в CLI."""
+    load_all_users()
+
+    portfolio = load_portfolio(user_id)
+    base = base_currency.strip().upper()
+    if base not in EXCHANGE_RATES:
+        raise ValueError(f"Неизвестная базовая валюта '{base}'")
+
+    base_rate = EXCHANGE_RATES[base]
+    wallets_data: list[dict] = []
+    for code, wallet in portfolio.wallets.items():
+        if code not in EXCHANGE_RATES:
+            continue
+        value = wallet.balance * EXCHANGE_RATES[code] / base_rate
+        wallets_data.append({"code": code, "balance": wallet.balance, "value": value})
+
+    total = portfolio.get_total_value(base_currency=base)
+
+    return {
+        "username": portfolio.user.username,
+        "base": base,
+        "wallets": wallets_data,
+        "total": total,
+    }
