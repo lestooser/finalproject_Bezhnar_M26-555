@@ -79,7 +79,7 @@ class User:
         """Проверить, что пароль не слишком короткий"""
         if len(password) < cls.PASSWORD_MIN_LENGTH:
             raise ValueError(
-                f"Пароль должен быть не менее {cls.PASSWORD_MIN_LENGTH} символов"
+                f"Пароль должен быть не короче {cls.PASSWORD_MIN_LENGTH} символов"
             )
 
     def get_user_info(self) -> str:
